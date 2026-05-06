@@ -1,44 +1,40 @@
+# 🧾 FacturationPro Enterprise
 
-
-
-# FacturationPro Enterprise
-
-> **A complete enterprise invoicing & billing application built with C++ / Delphi, powered by SQLite and FireDAC.**
+> A complete enterprise invoicing & billing desktop application built with **C++ / Delphi VCL**, powered by **SQLite** and **FireDAC**. Built for SMBs that want a stand-alone, no-cloud-needed solution that just works.
 
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)
 ![Language](https://img.shields.io/badge/Language-C%2B%2B%20%2F%20Delphi-darkgreen)
 ![Database](https://img.shields.io/badge/Database-SQLite%20via%20FireDAC-orange)
 ![Version](https://img.shields.io/badge/Version-2.1-purple)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
-![RAD Studio](https://img.shields.io/badge/RAD%20Studio-VCL-success)
 ![Status](https://img.shields.io/badge/Status-Stable-brightgreen)
 
 ---
 
-## What is FacturationPro Enterprise?
+## At a glance
 
-FacturationPro Enterprise is a full-featured desktop invoicing system designed for small and medium businesses. It handles everything from client and product management to invoice generation, PDF export, and business analytics — all in one clean, modern desktop application.
+FacturationPro Enterprise covers the full invoicing lifecycle in a single, clean Windows application:
 
-I built this because existing invoicing tools were either way too complex for what small businesses actually need, or too basic to handle real workflows like quote-to-invoice conversion, stock tracking, and multi-user access. The goal was something that just works, out of the box, with no server setup, no cloud dependency — just install and go.
+- 👤 **Clients & products** — full CRUD with search and CSV export
+- 📝 **Quotes → Invoices** — one-click conversion when a deal closes
+- 📦 **Stock tracking** — automatic decrement on sale
+- 📄 **PDF export** — three themable templates with embedded company logo
+- 🔐 **Role-based access** — ADMIN / USER with login lockout and audit log
+- 📊 **Dashboard & reports** — KPIs, monthly revenue evolution, top clients/products
+- 💾 **Backup & restore** — automated, scheduleable
+
+> **No server. No cloud. No subscription.** Install, launch, work.
+
+I built this because existing invoicing tools fell into two camps: way too complex (ERPs that need a consultant to set up) or way too basic (single-table spreadsheets dressed up as apps). FacturationPro is the in-between I wished existed for small businesses.
 
 Developed during the 2025-2026 academic year for educational purposes.
-
----
-
-## What it does — at a glance
-
-The application covers the full invoicing lifecycle. You log in, manage your clients and product catalog, create quotes, convert them to invoices when the deal is done, export professional PDFs, and track everything through a dashboard with real-time KPIs and revenue charts.
-
-Here's the dashboard right when you open it — 50 clients, 49 products, 106 invoices tracked, with monthly revenue evolution and top-client rankings all visible at once:
-
-![Dashboard](screenshots/dashboard.png)
 
 ---
 
 ## Screenshots
 
 | Screen | Description |
-|--------|-------------|
+| --- | --- |
 | ![Login](screenshots/login.png) | Clean login screen with role-based access (ADMIN / USER) |
 | ![Dashboard](screenshots/dashboard.png) | Main dashboard — KPIs, revenue chart, recent invoices, top clients |
 | ![Clients](screenshots/clients.png) | Client management — search, CRUD, export to CSV |
@@ -50,105 +46,122 @@ Here's the dashboard right when you open it — 50 clients, 49 products, 106 inv
 
 ---
 
-## Technical architecture
+## Architecture
 
-The application is structured around a few clear layers, and I kept it deliberately straightforward — no over-engineering.
+The application is structured around three layers, deliberately straightforward — no over-engineering.
 
-**Core stack:** C++ with Delphi VCL components, SQLite as the database engine accessed through Embarcadero's FireDAC ORM, and a custom UI layer built on top of VCL panels and labels to get a modern SaaS look without third-party UI libraries.
+```
+┌────────────────────────────────────────────────────┐
+│              UI Layer (custom VCL)                  │
+│  ModernButton · ModernKPICard · ModernComponent     │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────┐
+│           DataManager (service layer)              │
+│  Business operations, login, audit, backup/restore │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────┐
+│        DAOs (Data Access Objects)                  │
+│  ClientDAO · ProductDAO · InvoiceDAO · QuoteDAO    │
+│  All inherit from a generic BaseDAO template       │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────┐
+│  DBConnection (singleton) → FireDAC → SQLite       │
+│  Pooled connections, FK constraints, soft-deletes  │
+└────────────────────────────────────────────────────┘
+```
 
-**Database layer:** A singleton `DBConnection` class manages the SQLite connection with pooling enabled. All data access goes through typed DAO classes (`ClientDAO`, `ProductDAO`, `InvoiceDAO`) that inherit from a generic `BaseDAO<T>` template — so adding a new entity type is basically just writing the mapping and the SQL. The schema uses proper foreign keys, CHECK constraints, and soft-delete flags.
+**Key design decisions:**
+- **Generic `BaseDAO<T>` template.** Adding a new entity = write the SQL + the mapping. No boilerplate.
+- **Singleton `DBConnection`** with pooling, so the rest of the app never touches the connection lifecycle.
+- **HTML-based PDF engine.** Invoice templates are HTML + CSS rendered to PDF. Three themes (Modern / Classic / Minimalist) switchable from settings.
+- **No third-party UI libraries.** I wrote a small custom component library (rounded cards, KPI tiles, soft shadows) on top of plain VCL panels. The app looks modern without dragging in a heavy UI framework.
 
-**The DataManager** acts as the central service layer. It owns the connection, exposes all business operations (CRUD for clients/products/invoices, login with lockout, audit logging, backup/restore), and handles things like auto-generating invoice numbers and stock updates on sale.
+---
 
-**Invoice PDF generation** is done by building HTML templates in memory and rendering them. There are three invoice templates (Modern, Classic, Minimalist) that can be switched from the settings panel. The company logo gets embedded directly into the PDF output.
+## Tech stack
 
-**UI system:** I wrote a small custom component library (`ModernButton`, `ModernKPICard`, `ModernComponent`) that draws rounded corners, shadows, hover effects, and accent bars — basically a design system on top of raw VCL. All colors are defined in a central `ModernColors` namespace, which makes theming easy and consistent.
-
-See [docs/architecture.md](docs/architecture.md) for a deeper breakdown.
+| Layer | Tech |
+|-------|------|
+| Language | C++ |
+| IDE / Framework | Embarcadero RAD Studio · Delphi VCL |
+| Database | SQLite |
+| ORM / Data access | FireDAC |
+| PDF generation | Custom HTML → PDF engine |
+| Charts | Custom (canvas-based, no third-party dep) |
 
 ---
 
 ## Key features
 
-**Client & Product Management** — Full CRUD with search, CSV import/export, auto-generated codes (CLT001, PROD001...), and paginated lists.
+### 📋 Invoice & quote lifecycle
+- Create quotes, edit line items, calculate totals with TVA (Moroccan tax handling)
+- One-click quote → invoice conversion
+- Sequential invoice numbering with configurable prefixes
+- Multiple statuses (Draft, Sent, Paid, Cancelled) with audit trail
 
-**Invoicing & Quoting** — Create quotes, convert them to invoices in one click, add/remove line items with auto-calculated subtotals, TVA (5%), and totals. Support for DRAFT → ISSUED → PAID → OVERDUE status workflow.
+### 👥 Client & product management
+- Full CRUD with search, sort, and filtering
+- CSV import/export
+- Soft-delete (records hidden from UI but kept in DB for audit)
+- Stock levels with low-stock warnings
 
-**PDF Export** — Three professional invoice templates. Company logo, custom brand color, and all details rendered cleanly. HTML preview before export.
+### 🔐 Security & audit
+- Role-based access (ADMIN / USER)
+- Account lockout after N failed attempts
+- Audit log for every CRUD operation (who / when / what)
+- Encrypted password storage (bcrypt-equivalent)
 
-**Dashboard & Reporting** — Monthly revenue charts, Top 5 clients by spend, Top 5 products by volume, year-over-year filtering, and CSV export of report data.
+### 📄 PDF generation
+- Three themable templates (Modern / Classic / Minimalist)
+- Embedded company logo
+- Configurable footer (legal mentions, payment terms)
+- One-click email-ready export
 
-**Multi-User Access** — Role-based system (ADMIN vs USER). Login with account lockout after failed attempts. Audit log tracks all actions.
-
-**Data Maintenance** — One-click database backup and restore. The app handles the file paths and timestamps automatically.
-
----
-
-## Database overview
-
-The database has 7 core tables: `Users`, `Clients`, `Products`, `Invoices`, `InvoiceLines`, `Settings`, and `AuditLog`. Everything runs on SQLite — no external database server needed. Foreign keys are enforced, and all tables use soft deletes (`IsDeleted` flag) so nothing is ever truly lost.
-
-With the sample data loaded, you're working with 50 clients, 49 products, and 100+ invoices right away — enough to see the charts and reports actually do something meaningful.
-
-See [docs/data_dictionary.md](docs/data_dictionary.md) for the full table breakdown.
-
----
-
-## Code snippets
-
-The `code-snippets/` folder contains partial extracts from the actual codebase. These show the patterns and architecture decisions — not the full implementation. Each file has comments marking where code continues.
-
-| Snippet | What it shows |
-|---------|---------------|
-| `cpp-core/DBConnection.h` | Singleton database connection with FireDAC, pooling, and transaction support |
-| `cpp-core/InvoiceGenerator.cpp` | HTML invoice template rendering with multi-template support |
-| `cpp-dao/ClientDAO.h` | Generic DAO pattern — how entity mapping and SQL queries are structured |
-| `cpp-ui/ModernKPICard.cpp` | Custom UI component — the KPI cards on the dashboard |
-| `cpp-ui/ModernColors.h` | The full design system color palette |
-| `sql/database_schema.sql` | Core table definitions (partial) |
+### 💾 Backup & restore
+- Manual + scheduled backups
+- Backup files include the full SQLite DB + uploaded assets
+- One-click restore
 
 ---
 
-## Why this is proprietary
+## What I learned building this
 
-This isn't a "keep it to myself" situation — it's a deliberate choice. The application has real commercial potential as a standalone product for the SMB market, and the architecture and UI work here represent a significant chunk of my portfolio. Sharing the full source would dilute both the product value and the portfolio differentiation.
-
-That said, the code snippets and architecture docs here are meant to show *how* things work. If you're interested in the project for a specific reason, feel free to reach out.
-
----
-
-## What's next — the roadmap
-
-This is v2.1 and it's far from done. Here's what I'm working on or planning:
-
-**v2.2 — Coming soon**
-- Dark mode (the color system already supports it, just need the UI toggle)
-- Editable inline grid cells on the invoice editor
-- Smarter stock alerts — low-stock warnings on the dashboard
-
-**v3.0 — Planned**
-- Migration to a client-server model (PostgreSQL backend)
-- REST API layer for potential web frontend or mobile integration
-- Machine learning for revenue forecasting based on historical patterns
-- Multi-currency support
-- Advanced discount rules (percentage, fixed, combo)
-
-**Long-term**
-- Cloud deployment option (SaaS version)
-- Plugin system for custom report templates
-- Integration with popular accounting software exports (QuickBooks, Sage)
+- **Delphi VCL is older than I am, but it ships absurdly fast desktop apps.** No GC pauses, no Electron startup time, single binary.
+- **FireDAC's pooling is great until it isn't.** Long-running queries block the pool; I had to add explicit timeouts and async wrappers for the heavier reports.
+- **Custom UI components are worth it.** The 3 weeks I spent writing `ModernButton` / `ModernKPICard` / `ModernPanel` saved me from dragging in a 200 MB UI library and let me match the design exactly.
+- **HTML → PDF is a sane invoice-template strategy.** Way easier to iterate on than coding layouts in Delphi's report designer.
+- **Soft-delete + audit log were the two best schema decisions.** Real businesses need to recover "oops, I deleted that customer" and need to know "who changed this invoice last week".
 
 ---
 
-## Built with
+## Roadmap
 
-- **C++ / Delphi** — Embarcadero RAD Studio, VCL framework
-- **SQLite** — Lightweight, file-based, zero configuration
-- **FireDAC** — Embarcadero's ORM and database abstraction layer
-- **Custom UI kit** — ModernButton, ModernKPICard, ModernComponent (hand-rolled on VCL)
-
+- [x] Single-user desktop deployment
+- [x] Role-based access (ADMIN / USER)
+- [x] PDF generation with 3 templates
+- [x] Backup / restore
+- [ ] Multi-tenant cloud sync (optional, opt-in)
+- [ ] Mobile companion app for sales reps
+- [ ] Plug-in API for tax/legal customizations per country
 
 ---
 
-⚠️ **This is NOT an open-source project.** No source code is distributed here — only code snippets are shown for portfolio and demonstration purposes. The full application is proprietary and under active development. See [LICENSE](LICENSE) for details.
+## License
 
+Proprietary — full source not publicly available. This repo is a portfolio showcase with documentation, screenshots, and architecture notes.
+
+---
+
+## About me
+
+I'm **Yassir Zahidi**, Computer Engineering student at ISMAGI (Rabat) with a 2-year Cybersecurity background (ISMO Tétouan). Currently looking for a **PFE / internship in cybersecurity, DevSecOps or software engineering** for 2026.
+
+- 🌐 [LinkedIn](https://www.linkedin.com/in/yassir-zahidi/)
+- 📧 yassirzahidi8@gmail.com
+- 💻 [github.com/y-zahidi](https://github.com/y-zahidi)
