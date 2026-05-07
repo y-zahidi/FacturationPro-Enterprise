@@ -12,6 +12,7 @@
 ![License](https://img.shields.io/badge/License-Proprietary-red)
 ![RAD Studio](https://img.shields.io/badge/RAD%20Studio-VCL-success)
 ![Status](https://img.shields.io/badge/Status-Stable-brightgreen)
+[![CI](https://github.com/y-zahidi/FacturationPro-Enterprise/actions/workflows/ci.yml/badge.svg)](https://github.com/y-zahidi/FacturationPro-Enterprise/actions/workflows/ci.yml)
 
 ---
 

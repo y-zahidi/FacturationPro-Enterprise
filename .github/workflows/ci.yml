@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cpp-static-analysis:
+    name: C++ static analysis (cppcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends cppcheck
+
+      # The repo ships partial code snippets that reference Embarcadero VCL
+      # types (String, FormatFloat, FireDAC's TFDConnection, ...). They will
+      # never *compile* in a generic GCC/Clang toolchain — but cppcheck can
+      # still flag real defects: dead code, leaks, off-by-one, uninitialised
+      # vars, ... independently of the missing headers.
+      - name: Run cppcheck (errors only, missing-includes suppressed)
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --inline-suppr \
+            --suppress=missingInclude \
+            --suppress=missingIncludeSystem \
+            --suppress=unknownMacro \
+            --suppress=unmatchedSuppression \
+            --suppress=unusedStructMember \
+            --suppress=normalCheckLevelMaxBranches \
+            --error-exitcode=1 \
+            --quiet \
+            code-snippets/
+
+  sql-syntax:
+    name: SQL syntax check (sqlite3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sqlite3
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends sqlite3
+
+      # Parse every .sql file in dry-run mode against an in-memory SQLite
+      # database. Any syntax error fails the job; runtime errors (e.g. table
+      # already exists from a previous statement) are still reported but the
+      # idea is to surface obvious typos before they hit the desktop app.
+      - name: sqlite3 .read each .sql file in :memory:
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            echo "::group::$f"
+            if ! sqlite3 :memory: ".read $f" 2>&1; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done < <(find code-snippets -type f -name '*.sql' -print0)
+          exit "$fail"
+
+  markdown:
+    name: Markdown link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install markdown-link-check
+        run: npm install --global markdown-link-check@3.12.2
+
+      - name: Check links in every .md file (skip external 4xx/5xx)
+        run: |
+          cat > .mlc.json <<'JSON'
+          {
+            "retryOn429": true,
+            "retryCount": 2,
+            "fallbackRetryDelay": "30s",
+            "aliveStatusCodes": [200, 206, 301, 302, 304, 403, 429]
+          }
+          JSON
+
+          fail=0
+          while IFS= read -r -d '' f; do
+            echo "::group::$f"
+            if ! markdown-link-check --quiet --config .mlc.json "$f"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done < <(find . -type f -name '*.md' -not -path './.git/*' -not -path './node_modules/*' -print0)
+          exit "$fail"
