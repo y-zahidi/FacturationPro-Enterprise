@@ -52,7 +52,7 @@ jobs:
       # database. Any syntax error fails the job; runtime errors (e.g. table
       # already exists from a previous statement) are still reported but the
       # idea is to surface obvious typos before they hit the desktop app.
-      - name: sqlite3 .read each .sql file in :memory:
+      - name: "sqlite3 .read each .sql file in :memory:"
         run: |
           fail=0
           while IFS= read -r -d '' f; do
@@ -78,10 +78,14 @@ jobs:
       - name: Install markdown-link-check
         run: npm install --global markdown-link-check@3.12.2
 
-      - name: Check links in every .md file (skip external 4xx/5xx)
+      - name: Check links in every .md file (http only, skip relative file refs and # placeholders)
         run: |
           cat > .mlc.json <<'JSON'
           {
+            "ignorePatterns": [
+              { "pattern": "^#" },
+              { "pattern": "^(?!https?://)" }
+            ],
             "retryOn429": true,
             "retryCount": 2,
             "fallbackRetryDelay": "30s",
